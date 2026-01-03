@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List
 
 from datasets import load_dataset
 
@@ -15,8 +13,8 @@ class Example:
     answer: str
 
 
-def load_riddles(path: Path) -> List[Example]:
-    items: List[Example] = []
+def load_riddles(path: Path) -> list[Example]:
+    items: list[Example] = []
     with path.open() as f:
         for idx, line in enumerate(f):
             import json  # lazy import
@@ -26,11 +24,11 @@ def load_riddles(path: Path) -> List[Example]:
     return items
 
 
-def load_gsm8k_lite(limit: int = 100, split: str = "test") -> List[Example]:
+def load_gsm8k_lite(limit: int = 100, split: str = "test") -> list[Example]:
     # gsm8k is public; using "main" config
     ds = load_dataset("gsm8k", "main", split=split)
     rows = ds.select(range(min(limit, len(ds))))
-    examples: List[Example] = []
+    examples: list[Example] = []
     for i, row in enumerate(rows):
         question = row["question"]
         # gsm8k answers include reasoning steps; keep final line after '#### ' as canonical answer
@@ -40,19 +38,15 @@ def load_gsm8k_lite(limit: int = 100, split: str = "test") -> List[Example]:
     return examples
 
 
-def load_suite(name: str, riddles_path: Path = Path("eval/questions.jsonl"), gsm8k_limit: int = 100) -> List[Example]:
+def load_suite(name: str, riddles_path: Path = Path("eval/questions.jsonl"), gsm8k_limit: int = 100) -> list[Example]:
     name = name.lower()
     if name == "riddles":
         return load_riddles(riddles_path)
     if name in ("gsm8k", "gsm8k-lite", "gsm8k_lite"):
         return load_gsm8k_lite(limit=gsm8k_limit)
     if name == "all":
-        combined: List[Example] = []
+        combined: list[Example] = []
         combined.extend(load_riddles(riddles_path))
         combined.extend(load_gsm8k_lite(limit=gsm8k_limit))
         return combined
     raise ValueError(f"Unknown suite '{name}'. Use riddles | gsm8k-lite | all.")
-
-
-
-

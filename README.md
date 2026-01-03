@@ -15,7 +15,7 @@ Chain-of-Thought fine-tuning specialist for logic and math puzzles. Trains a qua
 - Windows-friendly dependency set (with `bitsandbytes-windows` fallback).
 
 ## Quickstart (Windows, CUDA GPU, tokenless)
-1) Install Python 3.9–3.12 and a CUDA-enabled PyTorch wheel for your GPU.  
+1) Install Python 3.9–3.12 and a CUDA-enabled PyTorch wheel for your GPU.
 2) Install deps:
 ```bash
 pip install -r requirements.txt

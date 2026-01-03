@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from datasets import DatasetDict, load_dataset
-
 
 SUPPORTED_DATASETS = {
     "isaiahbjork/chain-of-thought",
@@ -18,7 +16,7 @@ SUPPORTED_DATASETS = {
 class DatasetDownloader:
     """Download Chain-of-Thought datasets from Hugging Face with caching."""
 
-    cache_dir: Optional[str] = None
+    cache_dir: str | None = None
 
     def download(self, dataset_name: str) -> DatasetDict:
         """Download a supported dataset and return a DatasetDict with splits.

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import re
-from typing import Dict, Generator, Optional
+from collections.abc import Generator
+from contextlib import suppress
+from typing import Any, Literal, TypedDict, cast
 
 import torch
 
 from .loader import ModelLoader
-
 
 THINKING_RE = re.compile(r"<thinking>(.*?)</thinking>", re.DOTALL)
 ANSWER_RE = re.compile(r"<answer>(.*?)</answer>", re.DOTALL)
@@ -63,9 +64,12 @@ class ReasoningGenerator:
         self.temperature = temperature
         self.top_p = top_p
         self.model, self.tokenizer = loader.load()
+        # Unsloth returns HF model/tokenizer objects; keep them as `Any` to avoid requiring stubs.
+        self.model = cast(Any, self.model)
+        self.tokenizer = cast(Any, self.tokenizer)
 
     @staticmethod
-    def parse_response(text: str) -> Dict[str, Optional[str]]:
+    def parse_response(text: str) -> dict[str, str | None]:
         thinking_match = THINKING_RE.search(text)
         answer_match = ANSWER_RE.search(text)
         return {
@@ -87,23 +91,22 @@ class ReasoningGenerator:
                 {"role": "system", "content": instruction},
                 {"role": "user", "content": question.strip()},
             ]
-            try:
-                return self.tokenizer.apply_chat_template(
-                    messages,
-                    tokenize=False,
-                    add_generation_prompt=True,
+            with suppress(Exception):
+                return str(
+                    self.tokenizer.apply_chat_template(
+                        messages,
+                        tokenize=False,
+                        add_generation_prompt=True,
+                    )
                 )
-            except Exception:
-                # Fall back to a plain-text prompt if template application fails.
-                pass
 
         return f"{instruction}\n\nQuestion: {question.strip()}\n\nAnswer:"
 
     @staticmethod
-    def _extract_partial_sections(text: str) -> tuple[Optional[str], Optional[str]]:
+    def _extract_partial_sections(text: str) -> tuple[str | None, str | None]:
         """Best-effort extraction of thinking/answer, even if tags are not closed."""
-        thinking: Optional[str] = None
-        answer: Optional[str] = None
+        thinking: str | None = None
+        answer: str | None = None
 
         # Heuristic: many datasets/models emit a <thinking> block and then plain answer text
         # without wrapping it in <answer>. If we see </thinking> but no <answer>, treat the
@@ -112,10 +115,7 @@ class ReasoningGenerator:
         if "<answer>" not in text and "</thinking>" in text:
             before_close, after_close = text.split("</thinking>", 1)
             answer = after_close
-            if "<thinking>" in before_close:
-                thinking = before_close.split("<thinking>", 1)[1]
-            else:
-                thinking = before_close
+            thinking = before_close.split("<thinking>", 1)[1] if "<thinking>" in before_close else before_close
 
         if "<thinking>" in text:
             after = text.split("<thinking>", 1)[1]
@@ -129,10 +129,7 @@ class ReasoningGenerator:
 
         if "<answer>" in text:
             after = text.split("<answer>", 1)[1]
-            if "</answer>" in after:
-                answer = after.split("</answer>", 1)[0]
-            else:
-                answer = after
+            answer = after.split("</answer>", 1)[0] if "</answer>" in after else after
 
         def _strip_noise(s: str) -> str:
             # Remove special tokens like <|reflection_id|>, <|start_header_id|>, <|eot_id|>
@@ -191,27 +188,21 @@ class ReasoningGenerator:
             # Otherwise, fall back to the last non-empty line.
             return candidates[-1].strip()
 
-        def _clean_thinking(x: Optional[str]) -> Optional[str]:
+        def _clean_thinking(x: str | None) -> str | None:
             if x is None:
                 return None
             cleaned = _strip_noise(
-                x.replace("<thinking>", "")
-                .replace("</thinking>", "")
-                .replace("<answer>", "")
-                .replace("</answer>", "")
+                x.replace("<thinking>", "").replace("</thinking>", "").replace("<answer>", "").replace("</answer>", "")
             )
             if not cleaned or _is_only_control_markers(cleaned):
                 return None
             return cleaned
 
-        def _clean_answer(x: Optional[str]) -> Optional[str]:
+        def _clean_answer(x: str | None) -> str | None:
             if x is None:
                 return None
             cleaned = _strip_noise(
-                x.replace("<thinking>", "")
-                .replace("</thinking>", "")
-                .replace("<answer>", "")
-                .replace("</answer>", "")
+                x.replace("<thinking>", "").replace("</thinking>", "").replace("<answer>", "").replace("</answer>", "")
             )
             if not cleaned or _is_only_control_markers(cleaned):
                 return None
@@ -236,20 +227,25 @@ class ReasoningGenerator:
         prompt_length = inputs["input_ids"].shape[1]
         # Decode only the generated completion (not the prompt) to avoid leaking chat-template
         # role labels like "system/user/assistant" into parsing.
-        text = self.tokenizer.decode(outputs[0][prompt_length:], skip_special_tokens=True)
+        text = str(self.tokenizer.decode(outputs[0][prompt_length:], skip_special_tokens=True))
         if not stream:
             return text
         return self._stream_tokens(outputs, prompt_length)
 
-    def _stream_tokens(self, outputs, prompt_length: int) -> Generator[str, None, None]:
+    def _stream_tokens(self, outputs: Any, prompt_length: int) -> Generator[str, None, None]:
         """Yield generated tokens after the prompt (naive streaming)."""
         for token_id in outputs[0][prompt_length:]:
-            yield self.tokenizer.decode(token_id, skip_special_tokens=True)
+            yield str(self.tokenizer.decode(token_id, skip_special_tokens=True))
 
-    def stream_with_parsing(self, question: str) -> Generator[Dict[str, str], None, None]:
+    class StreamChunk(TypedDict):
+        type: Literal["thinking", "answer"]
+        content: str
+        done: bool
+
+    def stream_with_parsing(self, question: str) -> Generator[StreamChunk, None, None]:
         buffer = ""
-        last_thinking: Optional[str] = None
-        last_answer: Optional[str] = None
+        last_thinking: str | None = None
+        last_answer: str | None = None
 
         for token in self.generate(question, stream=True):
             buffer += token
@@ -288,20 +284,3 @@ class ReasoningGenerator:
                 yield {"type": "answer", "content": cleaned, "done": True}
             else:
                 yield {"type": "answer", "content": "No answer detected.", "done": True}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import dataclass
-from typing import List
 
 from reasoning_engine_cot.inference import ModelLoader, ReasoningGenerator
 
@@ -21,10 +20,10 @@ def score_output(text: str) -> tuple[bool, bool]:
     return ("<thinking>" in text and "</thinking>" in text, "<answer>" in text and "</answer>" in text)
 
 
-def run_smoke(prompts: List[str], use_adapters: bool) -> List[SmokeResult]:
+def run_smoke(prompts: list[str], use_adapters: bool) -> list[SmokeResult]:
     loader = ModelLoader(adapter_path="models/adapters" if use_adapters else None)
     generator = ReasoningGenerator(loader)
-    results: List[SmokeResult] = []
+    results: list[SmokeResult] = []
     for p in prompts:
         out = generator.generate(p, stream=False)
         thinking_ok, answer_ok = score_output(out)
@@ -34,7 +33,9 @@ def run_smoke(prompts: List[str], use_adapters: bool) -> List[SmokeResult]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run a small tag-adherence smoke test.")
-    parser.add_argument("--adapters", action=argparse.BooleanOptionalAction, default=False, help="Use adapters if present.")
+    parser.add_argument(
+        "--adapters", action=argparse.BooleanOptionalAction, default=False, help="Use adapters if present."
+    )
     args = parser.parse_args()
 
     prompts = [
@@ -59,7 +60,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-
-

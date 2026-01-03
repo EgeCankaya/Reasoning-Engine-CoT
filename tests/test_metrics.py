@@ -30,5 +30,3 @@ def test_peak_memory_handles_no_cuda(monkeypatch):
     fake_cuda = types.SimpleNamespace(is_available=lambda: False)
     monkeypatch.setattr(metrics.torch, "cuda", fake_cuda)
     assert metrics.peak_memory_mb() is None
-
-

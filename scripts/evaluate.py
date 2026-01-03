@@ -3,22 +3,20 @@
 from __future__ import annotations
 
 import argparse
-import json
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
-from reasoning_engine_cot.inference import ModelLoader, ReasoningGenerator
 from eval.suites import Example, load_suite
 from reasoning_engine_cot.eval.metrics import (
-    strict_adherence,
-    recovered_adherence,
-    tokens_stats,
-    reset_peak_memory,
     peak_memory_mb,
+    recovered_adherence,
+    reset_peak_memory,
+    strict_adherence,
+    tokens_stats,
 )
+from reasoning_engine_cot.inference import ModelLoader, ReasoningGenerator
 
 
 # Backwards-compat alias for earlier tests/docs.
@@ -39,7 +37,7 @@ class EvalResult:
     latency_ms: float
     tokens: int
     ms_per_token: float
-    vram_mb: Optional[float]
+    vram_mb: float | None
     output: str
 
 
@@ -74,7 +72,7 @@ def run_one(generator: ReasoningGenerator, ex: Example, use_adapters: bool, mode
     )
 
 
-def run_eval(use_adapters: bool, suite: str, gsm8k_limit: int) -> List[EvalResult]:
+def run_eval(use_adapters: bool, suite: str, gsm8k_limit: int) -> list[EvalResult]:
     examples = load_suite(suite, gsm8k_limit=gsm8k_limit)
     loader = ModelLoader(adapter_path="models/adapters" if use_adapters else None)
     generator = ReasoningGenerator(loader)
@@ -82,7 +80,7 @@ def run_eval(use_adapters: bool, suite: str, gsm8k_limit: int) -> List[EvalResul
     return [run_one(generator, ex, use_adapters, model_name) for ex in examples]
 
 
-def write_report(results: List[EvalResult], out_dir: Path, suite: str) -> None:
+def write_report(results: list[EvalResult], out_dir: Path, suite: str) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     csv_path = out_dir / "report.csv"
     md_path = out_dir / "summary.md"
@@ -103,9 +101,8 @@ def write_report(results: List[EvalResult], out_dir: Path, suite: str) -> None:
             "avg_tokens": sum(r.tokens for r in subset) / total,
             "avg_ms_per_token": sum(r.ms_per_token for r in subset) / total,
             "avg_vram": (
-                sum(r.vram_mb for r in subset if r.vram_mb is not None) / max(
-                    1, sum(1 for r in subset if r.vram_mb is not None)
-                )
+                sum(r.vram_mb for r in subset if r.vram_mb is not None)
+                / max(1, sum(1 for r in subset if r.vram_mb is not None))
                 if any(r.vram_mb is not None for r in subset)
                 else None
             ),
@@ -126,12 +123,13 @@ def write_report(results: List[EvalResult], out_dir: Path, suite: str) -> None:
                 f"{r.example_id},{r.model},{r.use_adapters},{int(r.thinking_ok)},{int(r.answer_ok)},"
                 f"{int(r.thinking_recovered)},{int(r.answer_recovered)},{int(r.answer_match)},"
                 f"{r.latency_ms:.2f},{r.tokens},{r.ms_per_token:.4f},"
-                f"{'' if r.vram_mb is None else f'{r.vram_mb:.2f}'},\"{escaped_output}\"\n"
+                f'{"" if r.vram_mb is None else f"{r.vram_mb:.2f}"},"{escaped_output}"\n'
             )
 
     def fmt_block(name: str, agg_res: dict) -> str:
         if agg_res.get("total", 0) == 0:
             return f"- {name}: no samples\n"
+        vram_str = "n/a" if agg_res["avg_vram"] is None else f"{agg_res['avg_vram']:.2f} MB"
         return (
             f"- {name} (n={agg_res['total']}): "
             f"thinking {agg_res['thinking']}/{agg_res['total']} (recovered {agg_res['thinking_rec']}/{agg_res['total']}), "
@@ -139,7 +137,7 @@ def write_report(results: List[EvalResult], out_dir: Path, suite: str) -> None:
             f"match {agg_res['match']}/{agg_res['total']}, "
             f"latency {agg_res['avg_latency']:.2f} ms, "
             f"ms/token {agg_res['avg_ms_per_token']:.4f}, "
-            f"vram {('n/a' if agg_res['avg_vram'] is None else f'{agg_res['avg_vram']:.2f} MB')}"
+            f"vram {vram_str}"
         )
 
     with md_path.open("w", encoding="utf-8") as f:
@@ -174,8 +172,12 @@ def main() -> None:
     parser.add_argument("--suite", type=str, default="riddles", help="riddles | gsm8k-lite | all")
     parser.add_argument("--gsm8k_limit", type=int, default=100, help="Limit for GSM8K-lite.")
     parser.add_argument("--adapters", action=argparse.BooleanOptionalAction, default=False, help="Use adapters.")
-    parser.add_argument("--ab", action=argparse.BooleanOptionalAction, default=False, help="Run both base and adapters.")
-    parser.add_argument("--out_dir", type=str, default=None, help="Directory to write reports (default reports/<timestamp>).")
+    parser.add_argument(
+        "--ab", action=argparse.BooleanOptionalAction, default=False, help="Run both base and adapters."
+    )
+    parser.add_argument(
+        "--out_dir", type=str, default=None, help="Directory to write reports (default reports/<timestamp>)."
+    )
     args = parser.parse_args()
 
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -185,7 +187,7 @@ def main() -> None:
     if args.ab:
         modes = [False, True]
 
-    all_results: List[EvalResult] = []
+    all_results: list[EvalResult] = []
     for mode in modes:
         all_results.extend(run_eval(use_adapters=mode, suite=args.suite, gsm8k_limit=args.gsm8k_limit))
 
@@ -195,5 +197,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-

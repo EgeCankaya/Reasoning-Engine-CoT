@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import streamlit as st
 import os
 from pathlib import Path
+
+import streamlit as st
 
 from reasoning_engine_cot.inference import ModelLoader, ReasoningGenerator
 from reasoning_engine_cot.langchain.llm import ReasoningLLM
@@ -24,7 +25,7 @@ def _result_key(model_label: str, prompt_text: str) -> str:
 
 def render() -> None:
     st.set_page_config(page_title="Reasoning Engine", page_icon="🧠", layout="wide")
-    st.title("Reasoning Engine – Chain-of-Thought Specialist")
+    st.title("Reasoning Engine - Chain-of-Thought Specialist")
     st.write("Enter a riddle, math problem, or logic query. The model will reason before answering.")
 
     base_model = os.getenv("MODEL_NAME", "models/base")
@@ -33,10 +34,7 @@ def render() -> None:
         # Streamlit can cache model instances across reruns. If MODEL_NAME or adapters changed,
         # clearing cache forces a clean reload.
         st.cache_resource.clear()
-        try:
-            st.rerun()
-        except Exception:  # pragma: no cover
-            st.experimental_rerun()
+        st.rerun()
     model_choice = st.sidebar.radio("Model", ["CoT Fine-Tuned", "Base Model"])
     use_langchain = st.sidebar.checkbox("Use LangChain wrapper", value=False)
     use_history = st.sidebar.checkbox("Retain chat history", value=False)
@@ -65,7 +63,9 @@ def render() -> None:
 
     def _run_once(model_label: str, adapters: bool, prompt_text: str) -> None:
         if adapters and not Path("models/adapters").exists():
-            st.error("No adapters found in `models/adapters`. Train or place LoRA weights there, or switch to Base Model.")
+            st.error(
+                "No adapters found in `models/adapters`. Train or place LoRA weights there, or switch to Base Model."
+            )
             return
 
         if not prompt_text.strip():
@@ -83,8 +83,8 @@ def render() -> None:
 
         if use_langchain:
             llm = ReasoningLLM(use_adapters=adapters)
-            output = llm(full_prompt)
-            thinking, answer = ReasoningGenerator._extract_partial_sections(output)  # type: ignore[attr-defined]
+            output = llm.invoke(full_prompt)
+            thinking, answer = ReasoningGenerator._extract_partial_sections(output)
             st.session_state.results[_result_key(model_label, prompt_text)] = {
                 "thinking": thinking,
                 "answer": answer or output,
@@ -170,19 +170,3 @@ def main() -> None:  # pragma: no cover
 
 if __name__ == "__main__":  # pragma: no cover
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

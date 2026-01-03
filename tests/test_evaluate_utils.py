@@ -1,4 +1,4 @@
-from scripts.evaluate import compute_adherence, answer_contains
+from scripts.evaluate import answer_contains, compute_adherence
 
 
 def test_compute_adherence_detects_both_tags():
@@ -19,6 +19,3 @@ def test_answer_contains_case_insensitive():
     assert answer_contains("The answer is Egg.", "egg")
     assert answer_contains("2 apples remain", "2")
     assert not answer_contains("nothing relevant", "egg")
-
-
-

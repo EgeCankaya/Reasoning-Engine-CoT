@@ -9,20 +9,19 @@ import os
 os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
 os.environ.setdefault("TORCH_COMPILE_DISABLE", "1")
 
-import unsloth  # noqa: F401  # must be imported before transformers/trl/peft for full optimizations
-
 import argparse
-import logging
-from pathlib import Path
-from typing import Any, Dict, Optional
-
 import builtins
+import logging
+from contextlib import suppress
+from pathlib import Path
+from typing import Any, cast
+
 import torch
+import unsloth  # noqa: F401  # must be imported before transformers/trl/peft for full optimizations
 import yaml
 from datasets import Dataset, DatasetDict
 from transformers import TrainingArguments
 from trl import SFTTrainer
-
 from unsloth import FastLanguageModel
 
 LOGGER = logging.getLogger(__name__)
@@ -39,9 +38,10 @@ class QLoRATrainer:
         self.tokenizer = None
 
     @staticmethod
-    def load_config(path: str | Path) -> Dict[str, Any]:
+    def load_config(path: str | Path) -> dict[str, Any]:
         with Path(path).open("r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            data = yaml.safe_load(f)
+            return cast(dict[str, Any], data if isinstance(data, dict) else {})
 
     def setup_model(self) -> None:
         model_name = self.config["model_name"]
@@ -52,7 +52,7 @@ class QLoRATrainer:
         self.model, self.tokenizer = FastLanguageModel.from_pretrained(
             model_name,
             max_seq_length=max_seq_length,
-             load_in_4bit=load_in_4bit,
+            load_in_4bit=load_in_4bit,
         )
 
         lora_cfg = self.config.get("lora", {})
@@ -93,12 +93,10 @@ class QLoRATrainer:
 
         # Unsloth's compiled trainer code may reference `psutil` without importing it.
         # Ensure it's available to avoid NameError on Windows.
-        try:  # pragma: no cover
-            import psutil  # type: ignore
+        with suppress(Exception):  # pragma: no cover
+            import psutil
 
-            builtins.psutil = psutil  # type: ignore[attr-defined]
-        except Exception:
-            pass
+            builtins.psutil = psutil
 
         output_dir = self.config.get("output_dir", "models/adapters")
         training_args = self._build_training_args(output_dir=output_dir)
@@ -111,7 +109,7 @@ class QLoRATrainer:
             tokenizer=self.tokenizer,
             train_dataset=train_split,
             dataset_text_field="text",
-            args=training_args,  
+            args=training_args,
             packing=False,
         )
         trainer.train()
@@ -141,7 +139,9 @@ class QLoRATrainer:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Fine-tune Llama 3 with QLoRA using Unsloth.")
-    parser.add_argument("--config", type=str, default="src/reasoning_engine_cot/training/config.yaml", help="Path to YAML config.")
+    parser.add_argument(
+        "--config", type=str, default="src/reasoning_engine_cot/training/config.yaml", help="Path to YAML config."
+    )
     parser.add_argument("--dataset_name", type=str, default=None, help="Optional HF dataset to download.")
     parser.add_argument("--merge_output", type=str, default=None, help="Optional path to save merged base+adapters.")
     parser.add_argument(
@@ -187,9 +187,3 @@ def main() -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     main()
-
-
-
-
-
-

@@ -65,12 +65,8 @@ def main() -> None:
     print(f"[run_ui] {torch_info}")
 
     cmd = [sys.executable, "-m", "streamlit", "run", "src/reasoning_engine_cot/ui/app.py"]
-    raise SystemExit(subprocess.call(cmd))
+    raise SystemExit(subprocess.call(cmd))  # noqa: S603
 
 
 if __name__ == "__main__":
     main()
-
-
-
-

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable, Optional
 
 from datasets import Dataset, DatasetDict
 
@@ -46,7 +46,9 @@ class CoTFormatter:
             answer=answer.strip(),
         )
 
-    def _infer_keys(self, sample: dict, question_key: Optional[str], reasoning_key: Optional[str], answer_key: Optional[str]) -> tuple[str, str, str]:
+    def _infer_keys(
+        self, sample: dict, question_key: str | None, reasoning_key: str | None, answer_key: str | None
+    ) -> tuple[str, str, str]:
         qk = question_key or next((k for k in QUESTION_KEYS if k in sample), None)
         rk = reasoning_key or next((k for k in REASONING_KEYS if k in sample), None)
         ak = answer_key or next((k for k in ANSWER_KEYS if k in sample), None)
@@ -62,9 +64,9 @@ class CoTFormatter:
     def format_dataset(
         self,
         dataset: Dataset | DatasetDict,
-        question_key: Optional[str] = None,
-        reasoning_key: Optional[str] = None,
-        answer_key: Optional[str] = None,
+        question_key: str | None = None,
+        reasoning_key: str | None = None,
+        answer_key: str | None = None,
     ) -> Dataset | DatasetDict:
         """Return a dataset with a new 'text' column containing formatted prompts."""
 
@@ -120,23 +122,3 @@ class CoTFormatter:
             for key, label in ((question_key, "question"), (reasoning_key, "reasoning"), (answer_key, "answer")):
                 if key not in sample or not str(sample[key]).strip():
                     raise ValueError(f"Sample {idx} missing or empty '{label}' field (key '{key}')")
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

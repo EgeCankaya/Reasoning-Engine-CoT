@@ -1,5 +1,4 @@
 import types
-from pathlib import Path
 
 from reasoning_engine_cot.inference.loader import ModelLoader
 
@@ -31,9 +30,7 @@ def test_loader_uses_base_then_applies_adapters(monkeypatch, tmp_path):
 
     fake_peft = types.SimpleNamespace(from_pretrained=fake_peft_from_pretrained)
 
-    monkeypatch.setitem(
-        __import__("sys").modules, "unsloth", types.SimpleNamespace(FastLanguageModel=fake_fast)
-    )
+    monkeypatch.setitem(__import__("sys").modules, "unsloth", types.SimpleNamespace(FastLanguageModel=fake_fast))
     # loader imports `from peft import PeftModel`
     monkeypatch.setitem(__import__("sys").modules, "peft", types.SimpleNamespace(PeftModel=fake_peft))
 
@@ -45,9 +42,5 @@ def test_loader_uses_base_then_applies_adapters(monkeypatch, tmp_path):
 
     assert calls["base_path"] == "models/base"
     assert calls["adapter_path"] == str(adapter_dir)
-    assert getattr(model, "adapter_loaded") == str(adapter_dir)
+    assert model.adapter_loaded == str(adapter_dir)
     assert tokenizer is dummy_tokenizer
-
-
-
-
