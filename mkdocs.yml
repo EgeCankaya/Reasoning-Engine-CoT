@@ -15,7 +15,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: ["src/reasoning_engine_cot"]
+          paths: ["src"]
 theme:
   name: material
   feature:
