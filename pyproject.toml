@@ -22,6 +22,7 @@ dependencies = [
     "huggingface_hub<1.0",
     "psutil>=5.9.0",
     "sentence-transformers>=2.2.0",
+    "rich>=13.0.0",  # Required by trl
 ]
 classifiers = [
     "Intended Audience :: Developers",
