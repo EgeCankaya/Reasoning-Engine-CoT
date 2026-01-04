@@ -131,14 +131,16 @@ class ReasoningGenerator:
             after = text.split("<answer>", 1)[1]
             answer = after.split("</answer>", 1)[0] if "</answer>" in after else after
 
-        def _strip_noise(s: str) -> str:
+        def _strip_noise(s: str, aggressive: bool = True) -> str:
             # Remove special tokens like <|reflection_id|>, <|start_header_id|>, <|eot_id|>
             s = SPECIAL_TOKEN_RE.sub("", s)
-            # Remove generic XML-ish tags and some malformed variants
-            s = ANGLE_TAG_RE.sub("", s)
-            s = MALFORMED_ANGLE_TAG_RE.sub("", s)
-            # Remove marker words even if spaced out (e.g., "ini ial_analysis")
-            s = MARKER_WORD_RE.sub("", s)
+            # Only apply aggressive tag/marker removal for structured outputs (fine-tuned models)
+            if aggressive:
+                # Remove generic XML-ish tags and some malformed variants
+                s = ANGLE_TAG_RE.sub("", s)
+                s = MALFORMED_ANGLE_TAG_RE.sub("", s)
+                # Remove marker words even if spaced out (e.g., "ini ial_analysis")
+                s = MARKER_WORD_RE.sub("", s)
             # Normalize whitespace
             s = re.sub(r"[ \t]+", " ", s)
             s = re.sub(r"\n{3,}", "\n\n", s)
@@ -276,10 +278,16 @@ class ReasoningGenerator:
             if answer is not None:
                 yield {"type": "answer", "content": answer, "done": True}
                 return
+            # For base models that don't output <thinking>/<answer> tags, do minimal cleaning
+            # Only remove special tokens like <|eot_id|>, not general content
             cleaned = re.sub(SPECIAL_TOKEN_RE, "", buffer)
-            cleaned = re.sub(ANGLE_TAG_RE, "", cleaned)
-            cleaned = re.sub(MALFORMED_ANGLE_TAG_RE, "", cleaned).strip()
-            cleaned = re.sub(MARKER_WORD_RE, "", cleaned).strip()
+            # Only apply aggressive tag removal if we detected structured tags in output
+            has_structured_tags = "<thinking>" in buffer or "<answer>" in buffer
+            if has_structured_tags:
+                cleaned = re.sub(ANGLE_TAG_RE, "", cleaned)
+                cleaned = re.sub(MALFORMED_ANGLE_TAG_RE, "", cleaned)
+                cleaned = re.sub(MARKER_WORD_RE, "", cleaned)
+            cleaned = cleaned.strip()
             if cleaned:
                 yield {"type": "answer", "content": cleaned, "done": True}
             else:
