@@ -15,7 +15,10 @@ resolution-markers = [
 ]
 
 [manifest]
-overrides = [{ name = "bitsandbytes", marker = "sys_platform != 'win32'", specifier = ">=0.43.0" }]
+overrides = [
+    { name = "bitsandbytes", marker = "sys_platform != 'win32'", specifier = ">=0.43.0" },
+    { name = "torchao", marker = "sys_platform != 'win32'", specifier = ">=0.1.0" },
+]
 
 [[package]]
 name = "accelerate"
@@ -5382,7 +5385,7 @@ dependencies = [
     { name = "regex" },
     { name = "sentencepiece" },
     { name = "torch" },
-    { name = "torchao" },
+    { name = "torchao", marker = "sys_platform != 'win32'" },
     { name = "tqdm" },
     { name = "transformers" },
     { name = "triton", marker = "'linux' in sys_platform" },

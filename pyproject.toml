@@ -141,9 +141,12 @@ preview = true
 per_rule_ignores = { "DEP002" = ["bitsandbytes", "bitsandbytes-windows", "accelerate", "huggingface_hub"] }
 
 [tool.uv]
-# On Windows, override unsloth's bitsandbytes dependency to use the Windows-compatible version
+# On Windows, override problematic dependencies
 override-dependencies = [
+    # Prevent regular bitsandbytes (use bitsandbytes-windows instead)
     "bitsandbytes>=0.43.0; platform_system != 'Windows'",
+    # Prevent torchao which has triton compatibility issues on Windows
+    "torchao>=0.1.0; platform_system != 'Windows'",
 ]
 
 [[tool.uv.index]]

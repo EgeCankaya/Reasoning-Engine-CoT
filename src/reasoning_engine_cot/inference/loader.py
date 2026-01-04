@@ -3,6 +3,13 @@
 from __future__ import annotations
 
 import os
+import sys
+
+# Disable Triton/Dynamo on Windows BEFORE any torch imports to avoid triton compatibility issues
+if sys.platform == "win32":
+    os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+    os.environ.setdefault("TORCH_COMPILE_DISABLE", "1")
+
 from functools import lru_cache
 from pathlib import Path
 from typing import Any

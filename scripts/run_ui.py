@@ -6,9 +6,16 @@ This is used by `make run` so contributors don't need `uv` installed.
 from __future__ import annotations
 
 import os
+import sys
+
+# Disable Triton/Dynamo EARLY on Windows to avoid import errors with torchao/triton
+# These must be set BEFORE any torch imports happen
+if sys.platform == "win32":
+    os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+    os.environ.setdefault("TORCH_COMPILE_DISABLE", "1")
+
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 
