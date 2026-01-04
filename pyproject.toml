@@ -139,6 +139,12 @@ preview = true
 # transformers/trl/unsloth at runtime or are only used by helper scripts.
 per_rule_ignores = { "DEP002" = ["bitsandbytes", "bitsandbytes-windows", "accelerate", "huggingface_hub"] }
 
+[tool.uv]
+# On Windows, override unsloth's bitsandbytes dependency to use the Windows-compatible version
+override-dependencies = [
+    "bitsandbytes>=0.43.0; platform_system != 'Windows'",
+]
+
 [[tool.uv.index]]
 name = "pytorch-cu124"
 url = "https://download.pytorch.org/whl/cu124"
