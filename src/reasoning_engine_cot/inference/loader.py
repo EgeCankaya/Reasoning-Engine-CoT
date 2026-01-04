@@ -1,4 +1,4 @@
-"""Model loading utilities with optional LoRA adapters."""
+﻿"""Model loading utilities with optional LoRA adapters."""
 
 from __future__ import annotations
 
@@ -21,21 +21,41 @@ def _load_cached(model_name: str, adapter_path: str | None, max_seq_length: int,
 
     Cached as a pure function to avoid `lru_cache` on instance methods (which can keep `self` alive).
     """
-    # NOTE: Unsloth requires a GPU/accelerator. Importing it at module import time
-    # breaks CPU-only environments (including unit tests that only need parsing).
+    # NOTE:
+    # - Unsloth imports `bitsandbytes` at import-time. On Windows this is frequently unavailable
+    #   or incompatible. We therefore import Unsloth lazily and fall back to plain Transformers.
+    # - We keep imports inside this function so unit tests can import the package without CUDA.
     from peft import PeftModel
-    from unsloth import FastLanguageModel
 
     base_path = model_name
     if not base_path:
         raise RuntimeError("MODEL_NAME is empty; set MODEL_NAME to your base model path or HF repo.")
 
-    # Load base model first.
+    # Load base model first (prefer Unsloth, but fall back if it can't be imported).
+    model: Any
+    tokenizer: Any
     try:
+        from unsloth import FastLanguageModel  # type: ignore
+
         model, tokenizer = FastLanguageModel.from_pretrained(
             base_path,
             max_seq_length=max_seq_length,
             load_in_4bit=load_in_4bit,
+        )
+    except ModuleNotFoundError as exc:
+        # Most common on Windows: "No module named 'bitsandbytes'" triggered by importing Unsloth.
+        if exc.name not in {"bitsandbytes", "unsloth"}:  # pragma: no cover
+            raise
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        import torch
+
+        dtype = torch.float16 if torch.cuda.is_available() else torch.float32
+        tokenizer = AutoTokenizer.from_pretrained(base_path, use_fast=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            base_path,
+            torch_dtype=dtype,
+            device_map="auto",
         )
     except Exception as exc:  # pragma: no cover - runtime guard
         # Common root cause on Windows: torch can't see CUDA in the Streamlit process.
@@ -77,14 +97,18 @@ class ModelLoader:
         model_name: str | None = None,
         adapter_path: str | None = None,
         max_seq_length: int = 2048,
-        load_in_4bit: bool = True,
+        load_in_4bit: bool | None = None,
     ) -> None:
         default_model = "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit"
         # Prefer explicit arg, then env, then default.
         self.model_name = model_name or os.getenv("MODEL_NAME") or default_model
         self.adapter_path = adapter_path
         self.max_seq_length = max_seq_length
-        self.load_in_4bit = load_in_4bit
+        # Default to non-4bit on Windows to avoid bitsandbytes dependency issues.
+        if load_in_4bit is None:
+            self.load_in_4bit = sys.platform != "win32"
+        else:
+            self.load_in_4bit = bool(load_in_4bit)
 
     def load(self) -> tuple[Any, Any]:
         return _load_cached(self.model_name, self.adapter_path, self.max_seq_length, self.load_in_4bit)
