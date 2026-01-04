@@ -40,7 +40,7 @@ docs: ## Build and serve the documentation
 
 .PHONY: run
 run: ## Run the Streamlit Logic Puzzle Solver UI
-	@python scripts/run_ui.py
+	@uv run python scripts/run_ui.py
 
 .PHONY: help
 help:

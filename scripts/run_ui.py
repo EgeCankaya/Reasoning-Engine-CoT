@@ -37,11 +37,15 @@ def _ensure_compiler_available() -> None:
         os.environ["CC"] = "cl.exe"
         return
 
-    raise RuntimeError(
-        "No C compiler found (cl.exe). Install VS Build Tools (Desktop development with C++) "
-        "and run this command from the 'x64 Native Tools Command Prompt for VS 2022' "
-        "(or set CC to your cl.exe path)."
+    # Warn but don't fail - inference may still work without Triton compilation
+    print(
+        "[WARNING] No C compiler found (cl.exe). Some optimizations may be unavailable.\n"
+        "For best performance, install VS Build Tools (Desktop development with C++) "
+        "and run from 'x64 Native Tools Command Prompt for VS 2022'."
     )
+    # Disable Triton/Dynamo to avoid compilation attempts
+    os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+    os.environ.setdefault("TORCH_COMPILE_DISABLE", "1")
 
 
 def main() -> None:
