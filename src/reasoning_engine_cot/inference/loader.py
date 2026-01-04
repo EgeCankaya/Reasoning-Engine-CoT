@@ -72,7 +72,7 @@ class ModelLoader:
         max_seq_length: int = 2048,
         load_in_4bit: bool = True,
     ) -> None:
-        default_model = "unsloth/llama-3-8b-instruct-bnb-4bit"
+        default_model = "unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit"
         # Prefer explicit arg, then env, then default.
         self.model_name = model_name or os.getenv("MODEL_NAME") or default_model
         self.adapter_path = adapter_path

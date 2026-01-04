@@ -14,7 +14,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--repo_id",
         type=str,
-        default="unsloth/Qwen2.5-3B-Instruct-bnb-4bit",
+        default="unsloth/Meta-Llama-3.1-8B-Instruct-bnb-4bit",
         help="Hugging Face model repo to download (must be public/tokenless or token configured).",
     )
     parser.add_argument(
