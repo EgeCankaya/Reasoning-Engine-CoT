@@ -41,7 +41,7 @@ def main() -> None:
         local_dir_use_symlinks=False,
         resume_download=True,
     )
-    print(f"✅ Downloaded {args.repo_id} to {dst}")
+    print(f"Downloaded {args.repo_id} to {dst}")
 
 
 if __name__ == "__main__":
