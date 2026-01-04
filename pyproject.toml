@@ -2,7 +2,7 @@
 name = "Reasoning-Engine-CoT"
 version = "0.0.1"
 description = "Chain-of-Thought fine-tuning specialist for logic and math puzzles."
-authors = [{ name = "Egemen Çankaya", email = "egemencankaya14@gmail.com" }]
+authors = [{ name = "Egemen Ã‡ankaya", email = "egemencankaya14@gmail.com" }]
 readme = "README.md"
 keywords = ['python']
 requires-python = ">=3.9,<4.0"
@@ -12,7 +12,6 @@ dependencies = [
     "datasets>=2.19.0",
     "peft>=0.11.0",
     "bitsandbytes>=0.43.0; platform_system != 'Windows'",
-    "bitsandbytes-windows>=0.0.1; platform_system == 'Windows'",
     "trl>=0.9.0",
     "unsloth>=2024.7.0",
     "accelerate>=0.30.0",
@@ -138,12 +137,10 @@ preview = true
 [tool.deptry]
 # deptry scans `src/` only (see Makefile). Many ML deps are used indirectly by
 # transformers/trl/unsloth at runtime or are only used by helper scripts.
-per_rule_ignores = { "DEP002" = ["bitsandbytes", "bitsandbytes-windows", "accelerate", "huggingface_hub"] }
 
 [tool.uv]
 # On Windows, override problematic dependencies
 override-dependencies = [
-    # Prevent regular bitsandbytes (use bitsandbytes-windows instead)
     "bitsandbytes>=0.43.0; platform_system != 'Windows'",
     # Prevent torchao which has triton compatibility issues on Windows
     "torchao>=0.1.0; platform_system != 'Windows'",

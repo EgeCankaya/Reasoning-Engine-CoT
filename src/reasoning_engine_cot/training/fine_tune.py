@@ -1,4 +1,4 @@
-﻿"""Fine-tuning pipeline.
+"""Fine-tuning pipeline.
 
 - Uses Unsloth QLoRA when available (4-bit).
 - Falls back to standard Transformers + PEFT LoRA on Windows when bitsandbytes/Unsloth is not usable.
@@ -102,14 +102,14 @@ class QLoRATrainer:
         self.tokenizer = tokenizer
 
     def _build_training_args(self, output_dir: str, has_eval: bool) -> Any:
-        from transformers import TrainingArguments
+        from trl.trainer.sft_config import SFTConfig
 
         cfg = self.settings.training
         bf16 = cfg.bf16
         fp16 = cfg.fp16
         eval_strategy = "steps" if has_eval else "no"
 
-        return TrainingArguments(
+        return SFTConfig(
             output_dir=output_dir,
             per_device_train_batch_size=cfg.per_device_train_batch_size,
             gradient_accumulation_steps=cfg.gradient_accumulation_steps,
@@ -121,7 +121,7 @@ class QLoRATrainer:
             logging_steps=cfg.logging_steps,
             optim=cfg.optim,
             lr_scheduler_type=cfg.lr_scheduler_type,
-            evaluation_strategy=eval_strategy,
+            eval_strategy=eval_strategy,
             eval_steps=cfg.eval_steps if has_eval else None,
             save_strategy="steps",
             save_steps=cfg.save_steps,
@@ -129,8 +129,8 @@ class QLoRATrainer:
             fp16=not torch.cuda.is_bf16_supported() if fp16 == "auto" else bool(fp16),
             save_total_limit=2,
             report_to="none",
-            load_best_model_at_end=cfg.load_best_model_at_end if has_eval else False,
-            metric_for_best_model="eval_loss" if has_eval else None,
+            dataset_text_field="text",
+            packing=False,
         )
 
     def _prepare_datasets(self, dataset: Dataset | DatasetDict) -> tuple[Dataset, Dataset | None]:
@@ -166,6 +166,14 @@ class QLoRATrainer:
 
         output_dir = self.settings.output_dir
         train_split, eval_split = self._prepare_datasets(dataset)
+
+        # TRL>=0.24 expects prompt/completion columns during tokenization.
+        def _to_prompt_completion(ex: dict[str, Any]) -> dict[str, str]:
+            return {"prompt": "", "completion": str(ex.get("text", ""))}
+
+        train_split = train_split.map(_to_prompt_completion)
+        if eval_split is not None:
+            eval_split = eval_split.map(_to_prompt_completion)
         has_eval = eval_split is not None
         training_args = self._build_training_args(output_dir=output_dir, has_eval=has_eval)
 
@@ -173,12 +181,10 @@ class QLoRATrainer:
 
         trainer = SFTTrainer(
             model=self.model,
-            tokenizer=self.tokenizer,
+            args=training_args,
             train_dataset=train_split,
             eval_dataset=eval_split,
-            dataset_text_field="text",
-            args=training_args,
-            packing=False,
+            processing_class=self.tokenizer,
             callbacks=self._build_callbacks(has_eval),
         )
         trainer.train()
